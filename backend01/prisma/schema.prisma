@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  PATIENT
+  THERAPIST
+  ADMIN
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum TherapistStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  BLOCKED
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  firstName     String
+  lastName      String
+  role          UserRole
+  phoneNumber   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  isVerified    Boolean   @default(false)
+  isBlocked     Boolean   @default(false)
+  
+  // Patient specific fields
+  appointmentsAsPatient Appointment[] @relation("PatientAppointments")
+  
+  // Therapist specific fields
+  therapistProfile    TherapistProfile?
+  appointmentsAsTherapist Appointment[] @relation("TherapistAppointments")
+  
+  // Common fields
+  notifications Notification[]
+  messages     Message[]
+}
+
+model TherapistProfile {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id])
+  specialization  String[]
+  bio             String
+  experience      Int
+  education       String[]
+  status          TherapistStatus @default(PENDING)
+  hourlyRate      Float
+  availability    Availability[]
+  reviews         Review[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Availability {
+  id              String    @id @default(uuid())
+  therapistId     String
+  therapist       TherapistProfile @relation(fields: [therapistId], references: [id])
+  dayOfWeek       Int       // 0-6 for Sunday-Saturday
+  startTime       String    // Format: "HH:mm"
+  endTime         String    // Format: "HH:mm"
+  isAvailable     Boolean   @default(true)
+}
+
+model Appointment {
+  id              String    @id @default(uuid())
+  patientId       String
+  patient         User      @relation("PatientAppointments", fields: [patientId], references: [id])
+  therapistId     String
+  therapist       User      @relation("TherapistAppointments", fields: [therapistId], references: [id])
+  dateTime        DateTime
+  status          AppointmentStatus @default(PENDING)
+  duration        Int       // in minutes
+  price           Float
+  paymentStatus   Boolean   @default(false)
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Review {
+  id              String    @id @default(uuid())
+  therapistId     String
+  therapist       TherapistProfile @relation(fields: [therapistId], references: [id])
+  patientId       String
+  rating          Int       // 1-5
+  comment         String?
+  createdAt       DateTime  @default(now())
+}
+
+model Message {
+  id              String    @id @default(uuid())
+  senderId        String
+  sender          User      @relation(fields: [senderId], references: [id])
+  receiverId      String
+  content         String
+  isRead          Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+}
+
+model Notification {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  title           String
+  message         String
+  isRead          Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+} 
